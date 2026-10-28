@@ -5,6 +5,7 @@ import { bboxContains, deadReckon, distanceM, normalizeBBox, padBBox } from '../
 import { AisSimulator } from '../shared/simulator.js';
 import { parseAisStreamMessage } from '../shared/aisstream.js';
 import { VesselStore } from '../shared/store.js';
+import { SHIP_CLASS_IDS } from '../shared/fleet.js';
 import { categoryOf, shipTypeLabel } from '../shared/vessel.js';
 
 const T0 = Date.parse('2026-10-28T12:00:00Z');
@@ -121,7 +122,7 @@ test('simulator output parses into valid vessels', () => {
     for (const u of parseAisStreamMessage(raw, T0)) store.apply(u, T0);
   }, T0);
   assert.ok(messages >= 100, `expected position + static per ship, got ${messages}`);
-  assert.equal(store.size, 57); // 50 random + 7 Royal Caribbean class demonstrators
+  assert.equal(store.size, 50 + SHIP_CLASS_IDS.length); // random fleet + one demonstrator per fleet class
   for (const v of store.values()) {
     assert.ok(v.name?.startsWith('SIM '), 'simulated vessels are clearly labelled');
     assert.ok(v.mmsi >= 999_990_000);

@@ -4,7 +4,7 @@
  */
 import type { Layer, PickingInfo } from '@deck.gl/core';
 import { bboxContains } from '../shared/geo.js';
-import { categoryOf, CATEGORY_LABELS, type Vessel } from '../shared/vessel.js';
+import { categoryOf, CATEGORY_LABELS, vesselBearing, type Vessel } from '../shared/vessel.js';
 import {
   BASEMAPS,
   BUILD_ENCRYPTED_KEY,
@@ -43,6 +43,8 @@ export class App {
   settings: Settings;
   source: DataSource | undefined;
   following = false;
+  /** Vessel to start following when the current camera flight ends. */
+  private followAfterFlight: number | null = null;
   /** The context of the most recent render, for plugins and debugging. */
   lastContext: RenderContext | undefined;
 
@@ -78,7 +80,7 @@ export class App {
       onFollow: (follow) => this.setFollowing(follow),
       onZoomTo: () => {
         const v = this.selectedVessel();
-        if (v) this.mapView.flyToVessel(...this.world.positionOf(v), Math.max(this.mapView.zoom, 13));
+        if (v) this.mapView.flyToVessel(...this.hullCentre(v), Math.max(this.mapView.zoom, 13));
       },
       onView3d: () => this.viewSelectedIn3d(),
     });
@@ -121,9 +123,21 @@ export class App {
     map.on('moveend', () => {
       this.source?.setViewport(this.mapView.bbox());
       this.requestRender();
+      // "View in 3D" keeps the ship framed once the camera has arrived.
+      if (this.followAfterFlight !== null && this.followAfterFlight === this.world.selected && !map.isMoving()) {
+        this.followAfterFlight = null;
+        this.setFollowing(true);
+      }
     });
     map.on('zoom', () => this.requestRender());
-    map.on('dragstart', () => this.setFollowing(false));
+    // Any manual camera move cancels following, including a pending one.
+    const userMoved = () => {
+      this.followAfterFlight = null;
+      this.setFollowing(false);
+    };
+    map.on('dragstart', userMoved);
+    map.on('wheel', userMoved);
+    map.on('touchstart', userMoved);
     map.on('load', () => this.source?.setViewport(this.mapView.bbox()));
 
     this.world.on('vessels', () => this.requestRender());
@@ -203,9 +217,27 @@ export class App {
     const v = this.selectedVessel();
     if (!v) return;
     if (!this.settings.models3d) this.updateSettings({ models3d: true });
-    const [lon, lat] = this.world.positionOf(v);
+    this.setFollowing(false);
+    const [lon, lat] = this.hullCentre(v);
     const ship = this.lastContext?.ships.find((s) => s.vessel.mmsi === v.mmsi);
     this.mapView.viewIn3d(lon, lat, ship?.bearing ?? this.mapView.map.getBearing(), ship?.lengthM ?? 100, this.uiPadding());
+    this.followAfterFlight = v.mmsi;
+  }
+
+  /**
+   * Current position of the middle of the hull. AIS positions are of the GPS
+   * antenna, which on a large ship can be 100 m from the centre.
+   */
+  hullCentre(v: Vessel): [number, number] {
+    const [lon, lat] = this.world.positionOf(v);
+    const bearing = vesselBearing(v);
+    if (bearing === undefined || v.dimA === undefined || v.dimB === undefined) return [lon, lat];
+    const fwd = (v.dimA - v.dimB) / 2;
+    const stbd = ((v.dimD ?? 0) - (v.dimC ?? 0)) / 2;
+    const h = (bearing * Math.PI) / 180;
+    const east = fwd * Math.sin(h) + stbd * Math.cos(h);
+    const north = fwd * Math.cos(h) - stbd * Math.sin(h);
+    return [lon + east / (111_320 * Math.cos((lat * Math.PI) / 180)), lat + north / 111_320];
   }
 
   updateSettings(patch: Partial<Settings>): void {
@@ -314,7 +346,12 @@ export class App {
     const v = this.selectedVessel();
     const map = this.mapView.map;
     if (!v || map.isZooming() || map.isRotating()) return;
-    map.easeTo({ center: this.world.positionOf(v), duration: MOTION_INTERVAL_MS, easing: (t) => t });
+    map.easeTo({
+      center: this.hullCentre(v),
+      duration: MOTION_INTERVAL_MS,
+      easing: (t) => t,
+      padding: this.uiPadding(),
+    });
   }
 }
 

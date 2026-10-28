@@ -143,6 +143,14 @@ export class ModelBuilder {
     this.emit(c, nc ?? flat, color);
   }
 
+  /** Triangle wound so its normal points away from `centre` (for convex solids). */
+  triAway(a: V3, b: V3, c: V3, color: RGB, centre: V3): void {
+    const n = cross(sub(b, a), sub(c, a));
+    const m: V3 = [(a[0] + b[0] + c[0]) / 3 - centre[0], (a[1] + b[1] + c[1]) / 3 - centre[1], (a[2] + b[2] + c[2]) / 3 - centre[2]];
+    if (n[0] * m[0] + n[1] * m[1] + n[2] * m[2] < 0) this.tri(a, c, b, color);
+    else this.tri(a, b, c, color);
+  }
+
   quad(a: V3, b: V3, c: V3, d: V3, color: RGB): void {
     this.tri(a, b, c, color);
     this.tri(a, c, d, color);

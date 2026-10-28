@@ -2,7 +2,7 @@
  * Reusable cruise-ship parts: a lofted hull, balconied superstructure blocks,
  * lifeboats, funnels, pools, slides and deck furniture.
  */
-import { ModelBuilder, type RGB, type V3 } from './builder.js';
+import { ModelBuilder, rotationY, translation, type RGB, type V3 } from './builder.js';
 
 export const DECK_HEIGHT = 2.95;
 
@@ -34,6 +34,14 @@ export const PALETTE = {
   slideGreen: [0.1, 0.72, 0.42],
   slideRed: [0.88, 0.14, 0.2],
   steel: [0.55, 0.57, 0.6],
+  carnivalRed: [0.84, 0.1, 0.16],
+  carnivalBlue: [0.0, 0.25, 0.6],
+  carnivalNavy: [0.04, 0.14, 0.36],
+  nclNavy: [0.04, 0.12, 0.3],
+  nclBlue: [0.0, 0.42, 0.7],
+  track: [0.22, 0.23, 0.25],
+  kerbRed: [0.85, 0.12, 0.12],
+  green: [0.18, 0.6, 0.3],
 } as const satisfies Record<string, RGB>;
 
 const P = PALETTE;
@@ -49,7 +57,11 @@ export interface HullSpec {
   height: number;
   /** How far the stem rakes back at the waterline, metres. */
   rake: number;
+  /** Optional livery or hull art: colour at (y, z) on a side (+1 starboard, -1 port); undefined keeps the default. */
+  paint?: HullPaint;
 }
+
+export type HullPaint = (y: number, z: number, side: 1 | -1) => RGB | undefined;
 
 /** Half-breadth of the hull at (y, z); y is clamped to the raked stem. */
 export function hullHalfBreadth(spec: HullSpec, y: number, z: number): { x: number; y: number } {
@@ -107,6 +119,11 @@ function hullRows(height: number): { z: number[]; color: (zMid: number, station:
 export function buildHull(b: ModelBuilder, spec: HullSpec): void {
   const ys = hullStations(spec.length);
   const rows = hullRows(spec.height);
+  if (spec.paint) {
+    // Finer rows so hull art has vertical resolution.
+    for (let z = 2.2; z < spec.height - 0.3; z += 1) rows.z.push(z);
+    rows.z.sort((a, b) => a - b);
+  }
   const grid: V3[][] = ys.map((y) =>
     rows.z.map((z) => {
       const h = hullHalfBreadth(spec, y, z);
@@ -129,7 +146,11 @@ export function buildHull(b: ModelBuilder, spec: HullSpec): void {
 
   for (let i = 0; i < grid.length - 1; i++) {
     for (let j = 0; j < rows.z.length - 1; j++) {
-      const color = rows.color((rows.z[j]! + rows.z[j + 1]!) / 2, i);
+      const zMid = (rows.z[j]! + rows.z[j + 1]!) / 2;
+      const base = rows.color(zMid, i);
+      const yMid = (grid[i]![j]![1] + grid[i + 1]![j]![1]) / 2;
+      const color = (zMid > 1.7 && spec.paint?.(yMid, zMid, 1)) || base;
+      const portColor = (zMid > 1.7 && spec.paint?.(yMid, zMid, -1)) || base;
       const a = grid[i]![j]!;
       const bb = grid[i + 1]![j]!;
       const c = grid[i + 1]![j + 1]!;
@@ -142,8 +163,8 @@ export function buildHull(b: ModelBuilder, spec: HullSpec): void {
       b.triSmooth(a, bb, c, na, nb, nc, color);
       b.triSmooth(a, c, d, na, nc, nd, color);
       // Port side (mirrored, reversed winding).
-      b.triSmooth(mirror(a), mirror(c), mirror(bb), mirrorN(na), mirrorN(nc), mirrorN(nb), color);
-      b.triSmooth(mirror(a), mirror(d), mirror(c), mirrorN(na), mirrorN(nd), mirrorN(nc), color);
+      b.triSmooth(mirror(a), mirror(c), mirror(bb), mirrorN(na), mirrorN(nc), mirrorN(nb), portColor);
+      b.triSmooth(mirror(a), mirror(d), mirror(c), mirrorN(na), mirrorN(nd), mirrorN(nc), portColor);
     }
   }
 
@@ -159,7 +180,8 @@ export function buildHull(b: ModelBuilder, spec: HullSpec): void {
   for (let j = 0; j < rows.z.length - 1; j++) {
     const p = grid[0]![j]!;
     const q = grid[0]![j + 1]!;
-    const color = rows.color((p[2] + q[2]) / 2, 1);
+    const zMid = (p[2] + q[2]) / 2;
+    const color = (zMid > 1.7 && spec.paint?.(p[1], zMid, 1)) || rows.color(zMid, 1);
     b.quad([-p[0], p[1], p[2]], [p[0], p[1], p[2]], [q[0], q[1], q[2]], [-q[0], q[1], q[2]], color);
   }
 }
@@ -338,15 +360,45 @@ export function lifeboatRows(b: ModelBuilder, xAbs: number, yFrom: number, yTo: 
 }
 
 /** Elliptical funnel with soot cap and the crown-and-anchor style logo on both sides. */
-export function funnel(b: ModelBuilder, x: number, y: number, z0: number, height: number, rx: number, ry: number): number {
+export type FunnelLivery = 'rci' | 'ncl' | 'carnival';
+
+/** Elliptical funnel with soot cap and line livery (logo on both sides). */
+export function funnel(
+  b: ModelBuilder,
+  x: number,
+  y: number,
+  z0: number,
+  height: number,
+  rx: number,
+  ry: number,
+  livery: FunnelLivery = 'rci',
+): number {
   const capStart = z0 + height - 1.4;
-  b.cylinder(x, y, z0, capStart, rx, ry, 28, P.white, null, 0.92);
-  b.cylinder(x, y, capStart, z0 + height, rx * 0.92, ry * 0.92, 28, P.funnelCap, P.funnelCap, 0.97);
-  const logoZ = z0 + height * 0.55;
+  const topScale = 0.92;
+  const scaleAt = (z: number) => 1 - (1 - topScale) * ((z - z0) / (capStart - z0));
+  if (livery === 'rci') {
+    b.cylinder(x, y, z0, capStart, rx, ry, 28, P.white, null, topScale);
+  } else {
+    // Two-tone: white lower part, coloured upper band.
+    const split = z0 + (capStart - z0) * (livery === 'ncl' ? 0.72 : 0.55);
+    const s = scaleAt(split);
+    b.cylinder(x, y, z0, split, rx, ry, 28, P.white, null, s);
+    b.cylinder(x, y, split, capStart, rx * s, ry * s, 28, livery === 'ncl' ? P.nclNavy : P.carnivalRed, null, topScale / s);
+  }
+  b.cylinder(x, y, capStart, z0 + height, rx * topScale, ry * topScale, 28, P.funnelCap, P.funnelCap, 0.97);
+  const logoZ = z0 + height * (livery === 'ncl' ? 0.42 : 0.55);
   for (const side of [1, -1]) {
-    const sx = x + side * rx * 0.985;
-    b.box(Math.min(sx, sx + side * 0.15), Math.max(sx, sx + side * 0.15), y - 2.2, y + 2.2, logoZ - 2.2, logoZ + 2.2, P.logoBlue);
-    b.box(Math.min(sx, sx + side * 0.18), Math.max(sx, sx + side * 0.18), y - 1.4, y + 1.4, logoZ + 2.4, logoZ + 3.6, P.logoGold);
+    const sx = x + side * rx * scaleAt(logoZ) * 0.985;
+    const plate = (dx: number, y0: number, y1: number, z0p: number, z1p: number, color: RGB) =>
+      b.box(Math.min(sx, sx + side * dx), Math.max(sx, sx + side * dx), y0, y1, z0p, z1p, color);
+    if (livery === 'rci') {
+      plate(0.15, y - 2.2, y + 2.2, logoZ - 2.2, logoZ + 2.2, P.logoBlue);
+      plate(0.18, y - 1.4, y + 1.4, logoZ + 2.4, logoZ + 3.6, P.logoGold);
+    } else if (livery === 'ncl') {
+      plate(0.15, y - 2.6, y + 2.6, logoZ - 1, logoZ + 1, P.nclBlue);
+    } else {
+      plate(0.15, y - 2.4, y + 2.4, logoZ - 0.5, logoZ + 0.5, P.carnivalBlue);
+    }
   }
   return z0 + height;
 }
@@ -437,4 +489,258 @@ export function climbingWall(b: ModelBuilder, x: number, y: number, z0: number, 
       b.box(x0, x0 + width / cols, y - 0.3, y, z1, z1 + height / rows, colors[(c + r) % colors.length]!);
     }
   }
+}
+
+// ---------------------------------------------------------------- line-specific fittings
+
+/** Convex polygon in the Y-Z plane extruded across X (x0..x1). */
+export function sideSlab(b: ModelBuilder, poly: [number, number][], x0: number, x1: number, color: RGB): void {
+  let cy = 0;
+  let cz = 0;
+  for (const [y, z] of poly) {
+    cy += y;
+    cz += z;
+  }
+  cy /= poly.length;
+  cz /= poly.length;
+  const centre: V3 = [(x0 + x1) / 2, cy, cz];
+  for (let i = 1; i < poly.length - 1; i++) {
+    for (const x of [x0, x1]) {
+      b.triAway([x, poly[0]![0], poly[0]![1]], [x, poly[i]![0], poly[i]![1]], [x, poly[i + 1]![0], poly[i + 1]![1]], color, centre);
+    }
+  }
+  for (let i = 0; i < poly.length; i++) {
+    const [ya, za] = poly[i]!;
+    const [yb, zb] = poly[(i + 1) % poly.length]!;
+    b.triAway([x0, ya, za], [x1, ya, za], [x1, yb, zb], color, centre);
+    b.triAway([x0, ya, za], [x1, yb, zb], [x0, yb, zb], color, centre);
+  }
+}
+
+/**
+ * Carnival's swept, winged "whale tail" funnel in red, white and blue.
+ * `y` is the middle of its base, `length` the base length along the ship.
+ */
+export function whaleTail(b: ModelBuilder, y: number, z0: number, height: number, length: number): number {
+  const t = Math.max(1.6, length * 0.13);
+  const sweep = 0.45 * height;
+  const topLen = 0.6 * length;
+  const baseAft = y - length / 2;
+  const baseFwd = y + length / 2;
+  const topAft = baseAft - sweep;
+  const topFwd = topAft + topLen;
+  const yA = (f: number) => baseAft + (topAft - baseAft) * f;
+  const yF = (f: number) => baseFwd + (topFwd - baseFwd) * f;
+  const zAt = (f: number) => z0 + height * f;
+  const bands: [number, number, RGB][] = [
+    [0, 0.38, P.white],
+    [0.38, 0.5, P.carnivalBlue],
+    [0.5, 1, P.carnivalRed],
+  ];
+  for (const [f0, f1, color] of bands) {
+    sideSlab(
+      b,
+      [
+        [yA(f0), zAt(f0)],
+        [yF(f0), zAt(f0)],
+        [yF(f1), zAt(f1)],
+        [yA(f1), zAt(f1)],
+      ],
+      -t,
+      t,
+      color,
+    );
+  }
+  // The tail's wings: drooping fins either side near the top, striped red, white and blue.
+  const wingZ = zAt(0.8);
+  const wingY0 = yA(0.8) + 0.5;
+  const wingLen = topLen * 0.8;
+  const span = length * 0.3;
+  const stripes: RGB[] = [P.carnivalBlue, P.white, P.carnivalRed];
+  for (const side of [1, -1]) {
+    b.with([translation(side * t, 0, wingZ), rotationY(side * 18)], () => {
+      stripes.forEach((color, k) => {
+        const y0 = wingY0 + (wingLen * k) / 3;
+        const y1 = wingY0 + (wingLen * (k + 1)) / 3;
+        if (side > 0) b.box(0, span, y0, y1, -0.35, 0.35, color, color, color);
+        else b.box(-span, 0, y0, y1, -0.35, 0.35, color, color, color);
+      });
+    });
+  }
+  return z0 + height;
+}
+
+/** Closed oval ("stadium") path around a centre, with optional height profile over t in [0, 1]. */
+export function loopPath(
+  cx: number,
+  cy: number,
+  halfX: number,
+  halfY: number,
+  z: number | ((t: number) => number),
+  segments = 72,
+): V3[] {
+  const rY = Math.min(halfX, halfY);
+  const straight = halfY - rY;
+  const endLength = (Math.PI * (halfX + rY)) / 2;
+  const perimeter = 4 * straight + 2 * endLength;
+  const pts: V3[] = [];
+  for (let k = 0; k <= segments; k++) {
+    const t = k / segments;
+    let s = t * perimeter;
+    let x: number;
+    let y: number;
+    if (s <= 2 * straight) {
+      x = cx + halfX;
+      y = cy - straight + s;
+    } else if ((s -= 2 * straight) <= endLength) {
+      const a = (s / endLength) * Math.PI;
+      x = cx + halfX * Math.cos(a);
+      y = cy + straight + rY * Math.sin(a);
+    } else if ((s -= endLength) <= 2 * straight) {
+      x = cx - halfX;
+      y = cy + straight - s;
+    } else {
+      s -= 2 * straight;
+      const a = Math.PI + (s / endLength) * Math.PI;
+      x = cx + halfX * Math.cos(a);
+      y = cy - straight + rY * Math.sin(a);
+    }
+    pts.push([x, y, typeof z === 'number' ? z : z(t)]);
+  }
+  return pts;
+}
+
+/** Flat track (go-kart circuit, cycle path) along a path, with red and white kerbs. */
+export function ribbon(b: ModelBuilder, path: V3[], width: number, color: RGB, kerbs = true): void {
+  const half = width / 2;
+  const edge = (i: number, offset: number): V3 => {
+    const a = path[Math.max(0, i - 1)]!;
+    const c = path[Math.min(path.length - 1, i + 1)]!;
+    const dx = c[0] - a[0];
+    const dy = c[1] - a[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const p = path[i]!;
+    return [p[0] + (dy / len) * offset, p[1] - (dx / len) * offset, p[2]];
+  };
+  for (let i = 0; i < path.length - 1; i++) {
+    const l0 = edge(i, -half);
+    const r0 = edge(i, half);
+    const l1 = edge(i + 1, -half);
+    const r1 = edge(i + 1, half);
+    const up: V3 = [(l0[0] + r1[0]) / 2, (l0[1] + r1[1]) / 2, l0[2] - 10];
+    b.triAway(l0, r0, r1, color, up);
+    b.triAway(l0, r1, l1, color, up);
+    // Edge skirts give the deck some thickness.
+    const drop = (p: V3): V3 => [p[0], p[1], p[2] - 0.4];
+    b.quad(drop(r0), drop(r1), r1, r0, color);
+    b.quad(drop(l1), drop(l0), l0, l1, color);
+    if (kerbs) {
+      const kerb = i % 2 === 0 ? P.kerbRed : P.white;
+      const kl0 = edge(i, -half - 0.6);
+      const kl1 = edge(i + 1, -half - 0.6);
+      const kr0 = edge(i, half + 0.6);
+      const kr1 = edge(i + 1, half + 0.6);
+      b.triAway(kl0, l0, l1, kerb, up);
+      b.triAway(kl0, l1, kl1, kerb, up);
+      b.triAway(r0, kr0, kr1, kerb, up);
+      b.triAway(r0, kr1, r1, kerb, up);
+    }
+  }
+}
+
+/** Support columns from a raised path down to a deck. */
+export function pillars(b: ModelBuilder, path: V3[], every: number, zBase: number, color: RGB = P.steel): void {
+  for (let i = 0; i < path.length; i += every) {
+    const [x, y, z] = path[i]!;
+    if (z - zBase > 0.8) b.cylinder(x, y, zBase, z - 0.4, 0.35, 0.35, 8, color, null);
+  }
+}
+
+/** Ropes course: a lattice of posts and beams over a deck area. */
+export function ropesCourse(b: ModelBuilder, x0: number, x1: number, y0: number, y1: number, z: number, height: number): void {
+  const nx = Math.max(2, Math.round((x1 - x0) / 5));
+  const ny = Math.max(2, Math.round((y1 - y0) / 5));
+  for (let i = 0; i <= nx; i++) {
+    for (let j = 0; j <= ny; j++) {
+      const x = x0 + ((x1 - x0) * i) / nx;
+      const y = y0 + ((y1 - y0) * j) / ny;
+      b.cylinder(x, y, z, z + height, 0.2, 0.2, 6, P.steel, null);
+    }
+  }
+  for (const level of [height * 0.45, height * 0.95]) {
+    for (let i = 0; i <= nx; i++) {
+      const x = x0 + ((x1 - x0) * i) / nx;
+      b.box(x - 0.15, x + 0.15, y0, y1, z + level - 0.15, z + level + 0.15, P.slideOrange);
+    }
+    for (let j = 0; j <= ny; j++) {
+      const y = y0 + ((y1 - y0) * j) / ny;
+      b.box(x0, x1, y - 0.15, y + 0.15, z + level - 0.15, z + level + 0.15, P.slideYellow);
+    }
+  }
+}
+
+/** Straight-run tube slide between points (e.g. racer slides, free-fall drops). */
+export function tubeSlide(b: ModelBuilder, points: V3[], color: RGB, radius = 0.9): void {
+  // Smooth the polyline with Catmull-Rom interpolation.
+  const path: V3[] = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)]!;
+    const p1 = points[i]!;
+    const p2 = points[i + 1]!;
+    const p3 = points[Math.min(points.length - 1, i + 2)]!;
+    for (let k = 0; k < 10; k++) {
+      const t = k / 10;
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const c = (a: number, bb: number, cc: number, d: number) =>
+        0.5 * (2 * bb + (-a + cc) * t + (2 * a - 5 * bb + 4 * cc - d) * t2 + (-a + 3 * bb - 3 * cc + d) * t3);
+      path.push([c(p0[0], p1[0], p2[0], p3[0]), c(p0[1], p1[1], p2[1], p3[1]), c(p0[2], p1[2], p2[2], p3[2])]);
+    }
+  }
+  path.push(points[points.length - 1]!);
+  b.tube(path, radius, 10, color);
+}
+
+// ---------------------------------------------------------------- standard layout
+
+export interface LayoutSpec {
+  hull: HullSpec;
+  /** Public-room decks above the hull (window facade). */
+  a: { decks: number; aft: number; front: number; half: number; frontLen: number };
+  /** Cabin decks (balcony facade), terraced forward by `step` and aft by `sternStep` per deck. */
+  b: { decks: number; aft: number; front: number; half: number; frontLen: number; step?: number; sternStep?: number };
+  /** Top (pool/sun) decks. */
+  c: { decks: number; aft: number; front: number; half: number; frontLen: number; facade?: Facade };
+  lifeboats: { x: number; from: number; to: number; count: number; below: number };
+  /** Bridge wings: half span and which cabin deck (0-based from the bottom of block B). */
+  bridge: { half: number; deck: number };
+}
+
+export interface Layout {
+  zA: number;
+  zB: number;
+  zC: number;
+  /** Front of cabin deck d (0-based). */
+  frontB: (d: number) => number;
+}
+
+/** Hull, lifeboats, three superstructure blocks and the bridge: the base most cruise ships share. */
+export function standardLayout(b: ModelBuilder, s: LayoutSpec): Layout {
+  buildHull(b, s.hull);
+  lifeboatRows(b, s.lifeboats.x, s.lifeboats.from, s.lifeboats.to, s.lifeboats.count, s.hull.height - s.lifeboats.below);
+  const zA = deckBlock(b, deckPlan(s.a.aft, s.a.front, s.a.half, s.a.frontLen), s.hull.height, s.a.decks, 'window');
+  const step = s.b.step ?? 1.4;
+  const sternStep = s.b.sternStep ?? 0;
+  const frontB = (d: number) => s.b.front - step * d;
+  const zB = steppedBlock(
+    b,
+    (d) => deckPlan(s.b.aft + sternStep * d, frontB(d), s.b.half, s.b.frontLen),
+    zA,
+    s.b.decks,
+    'balcony',
+  );
+  const zC = deckBlock(b, deckPlan(s.c.aft, s.c.front, s.c.half, s.c.frontLen), zB, s.c.decks, s.c.facade ?? 'window', P.deck, true);
+  const bridgeDeck = Math.min(s.bridge.deck, s.b.decks - 1);
+  bridgeWings(b, frontB(bridgeDeck) + 2, zA + bridgeDeck * DECK_HEIGHT, s.bridge.half, 5.5);
+  return { zA, zB, zC, frontB };
 }

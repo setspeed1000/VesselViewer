@@ -165,9 +165,11 @@ app.registerPlugin(radar); // `app` is window.vesselViewer
 
 For a multiplayer or scripted game, implement `DataSource` (`src/sources/types.ts`) to feed your own vessels into the same world.
 
-### Advanced models: Royal Caribbean fleet
+### Advanced models: Royal Caribbean, Carnival and Norwegian fleets
 
-With **Advanced models** on (Filters & display), all 30 Royal Caribbean ships in service get a detailed model of their class instead of the generic hull:
+With **Advanced models** on (Filters & display), every ship these three lines have in service (79 ships, October 2026) gets a detailed model of its class instead of the generic hull. The details panel shows the line and class, e.g. "Carnival · Vista class".
+
+**Royal Caribbean (30 ships)**
 
 | Class | Ships | Signature features modelled |
 | --- | --- | --- |
@@ -179,9 +181,39 @@ With **Advanced models** on (Filters & display), all 30 Royal Caribbean ships in
 | Radiance | Radiance, Brilliance, Serenade, Jewel of the Seas | Glass top tier, Centrum glass walls, outward-facing glass lifts |
 | Vision | Vision, Rhapsody, Grandeur, Enchantment of the Seas | Viking Crown Lounge ringing the funnel, Centrum glass walls |
 
+**Carnival (29 ships)**: all with the winged red, white and blue "whale tail" funnel except the Grand class
+
+| Class | Ships | Signature features modelled |
+| --- | --- | --- |
+| Excel | Mardi Gras, Carnival Celebration, Carnival Jubilee | Blue hull livery, BOLT roller coaster around the funnel |
+| Vista | Carnival Vista, Horizon, Panorama | SkyRide elevated track, Kaleid-o-Slide, Twister |
+| Venice (Vista subclass) | Carnival Venezia, Firenze | Glass-roofed lido, no SkyRide |
+| Dream | Carnival Dream, Magic, Breeze | WaterWorks slides, mini-golf |
+| Splendor | Carnival Splendor | Retractable glass roof over the midships pool |
+| Conquest | Carnival Conquest, Glory, Valor, Liberty, Freedom | WaterWorks slides |
+| Sunshine | Carnival Sunshine, Sunrise, Radiance | Twister, side-by-side racer slides, SkyCourse ropes course |
+| Spirit | Carnival Spirit, Pride, Legend, Miracle, Luminosa | Glass-walled top tier, terraced stern |
+| Fantasy | Carnival Elation, Paradise | Funnel far aft, Twister slide |
+| Grand (ex-P&O Australia) | Carnival Adventure, Encounter | Tall terraced stern, conventional funnel in Carnival colours |
+
+**Norwegian (20 ships)**: all with bow hull art (a stylised mural per class)
+
+| Class | Ships | Signature features modelled |
+| --- | --- | --- |
+| Prima | Norwegian Prima, Viva | Three-level Prima Speedway, The Drop slide down the side, Infinity Beach |
+| Prima Plus | Norwegian Aqua, Luna | Aqua Slidecoaster looping the funnel, The Drop |
+| Breakaway Plus | Norwegian Escape, Joy, Bliss, Encore | Two-level go-kart track (Escape: ropes course instead), slide loops over the side |
+| Breakaway | Norwegian Breakaway, Getaway | Free-fall slides, ropes course |
+| Epic | Norwegian Epic | Blunt, upright front; Epic Plunge bowl slide |
+| Jewel | Norwegian Jewel, Jade, Pearl, Gem | Spinnaker observation lounge, aft slide |
+| Dawn | Norwegian Star, Dawn | Spinnaker observation lounge, aft slide |
+| Sun | Norwegian Sun | Spinnaker observation lounge (Norwegian Sky left the fleet in August 2026) |
+| Leo | Norwegian Spirit | Terraced stern, Spinnaker lounge |
+| Pride of America | Pride of America | Stars-and-stripes hull art |
+
 Every model also has a lofted hull with a raked, flared bow, rows of portholes, balcony decks with dividers, terraced fronts, lifeboats, bridge wings, a mast with radomes, a funnel in the line's livery, pools with teak surrounds, hot tubs and sun loungers.
 
-The models are procedural (`src/render/models/`): generated in code from each class's real length, beam and deck count. They are stylised reconstructions, not shipyard CAD data. Ships are matched by AIS name, including names cut to AIS's 20-character limit. A reported ship type or length that contradicts the class rejects the match (`shared/fleet.ts`). The simulator includes one `SIM` ship of each class so the models can be viewed without live data. Select one and press **View in 3D**.
+The models are procedural (`src/render/models/`): generated in code from each class's real length, beam and deck count. They are stylised reconstructions, not shipyard CAD data. NCL's hull art differs on every ship, but each model shows one mural per class. Ships are matched by AIS name, including names cut to AIS's 20-character limit. A reported ship type or length that contradicts the class rejects the match, and non-distinctive names ("MARDI GRAS", "PRIDE OF AMERICA") also need matching dimensions (`shared/fleet.ts`). The simulator includes one `SIM` ship of each class so the models can be viewed without live data. Select one and press **View in 3D**.
 
 ### 3D models
 

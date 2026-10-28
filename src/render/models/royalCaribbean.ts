@@ -10,15 +10,12 @@
  * stylised reconstructions from published dimensions and photographs, not
  * shipyard CAD data.
  */
-import type { ShipClassId } from '../../../shared/fleet.js';
 import {
   ModelBuilder,
   rotationX,
   rotationZ,
   transformPoint,
   translation,
-  type ColorMesh,
-  type MeshStats,
   type RGB,
 } from './builder.js';
 import {
@@ -42,12 +39,8 @@ import {
   tree,
 } from './cruiseParts.js';
 
-export interface ShipModel {
-  mesh: ColorMesh;
-  /** Model length in metres; instances are scaled by reported length / this. */
-  lengthM: number;
-  stats: MeshStats;
-}
+/** Builds a model into `b` and returns its overall length in metres. */
+export type ModelBuildFn = (b: ModelBuilder, variant?: string) => number;
 
 /** Forward set-back per deck of the terraced cabin blocks, metres. */
 const STEP = 1.4;
@@ -350,28 +343,14 @@ function buildVision(b: ModelBuilder): number {
   return L;
 }
 
-// ---------------------------------------------------------------- cache
+// ---------------------------------------------------------------- registry
 
-const BUILDERS: Record<ShipClassId, (b: ModelBuilder) => number> = {
-  icon: buildIcon,
-  oasis: buildOasis,
-  quantum: buildQuantum,
-  freedom: (b) => buildPromenadeClass(b, { L: 339, hullHeight: 13, maxHalfBeam: 28, cabinDecks: 6 }),
-  voyager: (b) => buildPromenadeClass(b, { L: 311, hullHeight: 12.5, maxHalfBeam: 24, cabinDecks: 5 }),
-  radiance: buildRadiance,
-  vision: buildVision,
+export const RCI_BUILDERS: Record<string, ModelBuildFn> = {
+  'rci-icon': buildIcon,
+  'rci-oasis': buildOasis,
+  'rci-quantum': buildQuantum,
+  'rci-freedom': (b) => buildPromenadeClass(b, { L: 339, hullHeight: 13, maxHalfBeam: 28, cabinDecks: 6 }),
+  'rci-voyager': (b) => buildPromenadeClass(b, { L: 311, hullHeight: 12.5, maxHalfBeam: 24, cabinDecks: 5 }),
+  'rci-radiance': buildRadiance,
+  'rci-vision': buildVision,
 };
-
-const cache = new Map<ShipClassId, ShipModel>();
-
-/** The detailed model for a class, built on first use and cached. */
-export function getShipModel(id: ShipClassId): ShipModel {
-  let model = cache.get(id);
-  if (!model) {
-    const b = new ModelBuilder();
-    const lengthM = BUILDERS[id](b);
-    model = { mesh: b.build(), lengthM, stats: b.stats() };
-    cache.set(id, model);
-  }
-  return model;
-}
