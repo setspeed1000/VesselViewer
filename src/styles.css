@@ -1,0 +1,562 @@
+:root {
+  --vv-bg: rgba(255, 255, 255, 0.94);
+  --vv-fg: #14202b;
+  --vv-muted: #5a6875;
+  --vv-border: rgba(20, 32, 43, 0.14);
+  --vv-accent: #0b5f8f;
+  --vv-accent-fg: #fff;
+  --vv-ok: #1f9d55;
+  --vv-warn: #d08a00;
+  --vv-err: #c62828;
+  --vv-shadow: 0 4px 18px rgba(10, 25, 40, 0.18);
+  --vv-radius: 10px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: var(--vv-fg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #cfe0ea;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+.vv-map {
+  position: absolute;
+  inset: 0;
+  /* Own stacking context so map canvases and controls never paint over the UI. */
+  z-index: 0;
+}
+
+.vv-control,
+.vv-panel,
+.vv-banner,
+.vv-notice,
+.vv-attribution {
+  z-index: 1;
+}
+
+.vv-control,
+.vv-panel {
+  z-index: 2;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------ buttons */
+
+.vv-btn {
+  font: inherit;
+  border: 1px solid var(--vv-border);
+  background: #fff;
+  color: var(--vv-fg);
+  border-radius: 7px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.vv-btn:hover {
+  border-color: var(--vv-accent);
+}
+
+.vv-btn:focus-visible,
+.vv-chip:focus-visible,
+.vv-icon-btn:focus-visible {
+  outline: 2px solid var(--vv-accent);
+  outline-offset: 2px;
+}
+
+.vv-btn-primary {
+  background: var(--vv-accent);
+  border-color: var(--vv-accent);
+  color: var(--vv-accent-fg);
+}
+
+.vv-btn-small {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.vv-btn[aria-pressed='true'] {
+  background: #e3f0f8;
+  border-color: var(--vv-accent);
+}
+
+.vv-icon-btn {
+  border: 0;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--vv-muted);
+  padding: 2px 6px;
+}
+
+.vv-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+/* ------------------------------------------------------------ control panel */
+
+.vv-control {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 320px;
+  max-height: calc(100% - 60px);
+  overflow-y: auto;
+  background: var(--vv-bg);
+  border-radius: var(--vv-radius);
+  box-shadow: var(--vv-shadow);
+  padding: 12px;
+  backdrop-filter: blur(6px);
+}
+
+.vv-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vv-brand h1 {
+  font-size: 17px;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.vv-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.vv-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--vv-muted);
+}
+
+.vv-dot[data-state='connected'] {
+  background: var(--vv-ok);
+}
+
+.vv-dot[data-state='connecting'],
+.vv-dot[data-state='disconnected'] {
+  background: var(--vv-warn);
+}
+
+.vv-dot[data-state='error'] {
+  background: var(--vv-err);
+}
+
+.vv-status-detail {
+  font-size: 12px;
+  color: var(--vv-muted);
+  margin-top: 2px;
+}
+
+.vv-status-detail[data-state='error'] {
+  color: var(--vv-err);
+}
+
+.vv-counts {
+  font-size: 12px;
+  color: var(--vv-muted);
+  margin: 4px 0 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vv-search {
+  position: relative;
+}
+
+.vv-search-input {
+  width: 100%;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--vv-border);
+}
+
+.vv-search-results {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  background: #fff;
+  border: 1px solid var(--vv-border);
+  border-radius: 7px;
+  box-shadow: var(--vv-shadow);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.vv-search-results button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  text-align: left;
+  font: inherit;
+  border: 0;
+  background: transparent;
+  padding: 6px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.vv-search-results button:hover,
+.vv-search-results button:focus-visible {
+  background: #eef5fa;
+}
+
+.vv-search-results .vv-swatch {
+  grid-row: span 2;
+}
+
+.vv-search-name {
+  font-weight: 600;
+}
+
+.vv-search-meta,
+.vv-search-empty {
+  font-size: 12px;
+  color: var(--vv-muted);
+}
+
+.vv-search-empty {
+  padding: 6px;
+}
+
+.vv-filters {
+  margin-top: 10px;
+}
+
+.vv-filters summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.vv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.vv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--vv-border);
+  background: #fff;
+  cursor: pointer;
+}
+
+.vv-chip[aria-pressed='false'] {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.vv-chip-count {
+  color: var(--vv-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.vv-toggles {
+  display: grid;
+  gap: 6px;
+}
+
+.vv-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.vv-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.vv-select select {
+  font: inherit;
+  padding: 3px 6px;
+}
+
+/* ------------------------------------------------------------ vessel panel */
+
+.vv-panel {
+  position: absolute;
+  top: 12px;
+  right: 56px;
+  width: 340px;
+  max-height: calc(100% - 60px);
+  overflow-y: auto;
+  background: var(--vv-bg);
+  border-radius: var(--vv-radius);
+  box-shadow: var(--vv-shadow);
+  padding: 12px;
+  backdrop-filter: blur(6px);
+}
+
+.vv-panel-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.vv-panel-header .vv-swatch {
+  margin-top: 6px;
+  width: 12px;
+  height: 12px;
+}
+
+.vv-panel-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.vv-panel-title {
+  margin: 0;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.vv-panel-subtitle {
+  font-size: 12px;
+  color: var(--vv-muted);
+  margin-top: 2px;
+}
+
+.vv-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.vv-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.vv-facts dt {
+  color: var(--vv-muted);
+}
+
+.vv-facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------ banners */
+
+.vv-banner,
+.vv-notice {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff8e1;
+  border: 1px solid #f0d58a;
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-shadow: var(--vv-shadow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  max-width: calc(100% - 24px);
+}
+
+.vv-banner {
+  bottom: 34px;
+}
+
+.vv-notice {
+  bottom: 80px;
+  background: #fdecea;
+  border-color: #f2b8b5;
+}
+
+.vv-attribution {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-top-left-radius: 6px;
+  color: var(--vv-muted);
+}
+
+.vv-attribution a {
+  color: inherit;
+}
+
+.vv-tooltip {
+  font: 12px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif !important;
+  background: rgba(20, 32, 43, 0.92) !important;
+  color: #fff !important;
+  border-radius: 6px;
+  padding: 4px 8px !important;
+}
+
+/* ------------------------------------------------------------ settings dialog */
+
+.vv-dialog {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: var(--vv-shadow);
+  padding: 0;
+  width: min(520px, calc(100% - 24px));
+}
+
+.vv-dialog::backdrop {
+  background: rgba(10, 25, 40, 0.35);
+}
+
+.vv-settings {
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.vv-settings h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.vv-source-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--vv-border);
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.vv-source-option:has(input:checked) {
+  border-color: var(--vv-accent);
+  background: #f2f8fc;
+}
+
+.vv-source-option > input {
+  margin-top: 3px;
+}
+
+.vv-source-text {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+}
+
+.vv-source-text > span {
+  color: var(--vv-muted);
+}
+
+.vv-field {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.vv-field input[type='password'],
+.vv-field input[type='text'],
+.vv-field input[type='url'] {
+  width: 100%;
+  font: inherit;
+  padding: 7px 9px;
+  border: 1px solid var(--vv-border);
+  border-radius: 6px;
+}
+
+.vv-form-error {
+  color: var(--vv-err);
+  margin: 0;
+  min-height: 1em;
+  font-size: 13px;
+}
+
+.vv-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ------------------------------------------------------------ small screens */
+
+@media (max-width: 640px) {
+  .vv-control {
+    top: 8px;
+    left: 8px;
+    right: 56px;
+    width: auto;
+    max-height: 45%;
+    padding: 10px;
+  }
+
+  .vv-panel {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 28px;
+    width: auto;
+    max-height: 48%;
+  }
+
+  .vv-banner {
+    bottom: 26px;
+  }
+
+  /* The details sheet takes the bottom of the screen; banners would cover it. */
+  .vv-panel:not([hidden]) ~ .vv-banner,
+  .vv-panel:not([hidden]) ~ .vv-notice {
+    display: none;
+  }
+}

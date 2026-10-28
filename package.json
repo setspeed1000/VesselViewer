@@ -1,0 +1,35 @@
+{
+  "name": "vesselviewer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-time AIS ship tracker on a live world map, built to grow into 3D ship models and a game.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "dev": "vite",
+    "dev:relay": "tsx watch server/index.ts",
+    "build": "npm run typecheck && vite build",
+    "build:relay": "tsc -p tsconfig.relay.json",
+    "preview": "vite preview",
+    "relay": "node build/relay/server/index.js",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.server.json --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@deck.gl/core": "9.4.0",
+    "@deck.gl/layers": "9.4.0",
+    "@deck.gl/mapbox": "9.4.0",
+    "@deck.gl/mesh-layers": "9.4.0",
+    "@types/node": "22.20.5",
+    "@types/ws": "8.18.2",
+    "maplibre-gl": "5.24.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "7.3.7"
+  }
+}
