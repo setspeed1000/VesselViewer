@@ -5,7 +5,14 @@
 import type { Layer, PickingInfo } from '@deck.gl/core';
 import { bboxContains } from '../shared/geo.js';
 import { categoryOf, CATEGORY_LABELS, type Vessel } from '../shared/vessel.js';
-import { BASEMAPS, loadSettings, saveSettings, type Settings } from './core/settings.js';
+import {
+  BASEMAPS,
+  BUILD_ENCRYPTED_KEY,
+  hasStoredSettings,
+  loadSettings,
+  saveSettings,
+  type Settings,
+} from './core/settings.js';
 import { World } from './core/world.js';
 import { MapView } from './map/mapView.js';
 import type { AppPlugin } from './plugins/types.js';
@@ -50,6 +57,7 @@ export class App {
   private lastRender = 0;
 
   constructor(root: HTMLElement) {
+    const firstVisit = !hasStoredSettings();
     this.settings = loadSettings();
     this.world.deadReckoning = this.settings.deadReckoning;
 
@@ -60,8 +68,8 @@ export class App {
       el('button', {
         type: 'button',
         className: 'vv-btn vv-btn-small vv-btn-primary',
-        text: 'Connect live AIS',
-        onclick: () => this.settingsDialog.open(),
+        text: BUILD_ENCRYPTED_KEY ? 'Unlock live AIS' : 'Connect live AIS',
+        onclick: () => (BUILD_ENCRYPTED_KEY ? this.settingsDialog.openUnlock() : this.settingsDialog.open()),
       }),
     ]);
 
@@ -140,6 +148,11 @@ export class App {
     }, MOTION_INTERVAL_MS);
 
     this.connect();
+
+    // A built-in encrypted key needs its passphrase: ask on first visit, or when
+    // live data was chosen before but the key was not remembered.
+    const needsUnlock = this.settings.source === 'direct' && !this.settings.apiKey;
+    if (BUILD_ENCRYPTED_KEY && (firstVisit || needsUnlock)) this.settingsDialog.openUnlock();
   }
 
   // ---------------------------------------------------------------- public API

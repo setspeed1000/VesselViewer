@@ -25,14 +25,24 @@ Pick a source from **Data source** in the app.
 | aisstream.io (direct) | your browser's localStorage only | Quickest way to see live data. The key is sent only to aisstream.io. |
 | VesselViewer relay | on your relay server | Keeps the key private, and the browser downloads only what is on screen. Use this if aisstream refuses direct browser connections. |
 
-**The API key is never stored in this repository or in the built site.** A key placed in a GitHub Pages bundle would be readable by anyone, so it is entered at runtime instead.
+**The API key is never stored in plain text in this repository or in the built site.** Keys you paste in are kept in the browser, for the current tab only unless you tick **Remember on this device**.
+
+### Encrypted key (unlock with a passphrase)
+
+You can build an encrypted copy of your key into the site so that you, or people you trust, only need a passphrase:
+
+1. Open the site, click **Data source**, and expand **Build an encrypted key into this site**.
+2. Enter your key and a passphrase of at least 12 characters, then click **Encrypt**. This runs in your browser; nothing is sent anywhere.
+3. Copy the result. In GitHub, go to **Settings → Secrets and variables → Actions → Variables** and add a repository variable named `VITE_ENCRYPTED_API_KEY` with that value.
+4. Re-run the **Deploy to GitHub Pages** workflow. The site now asks visitors for the passphrase. Anyone without it gets the simulator.
+
+The encryption is AES-256-GCM with a PBKDF2-SHA256 key (600,000 iterations). The encrypted text is public, so a short or guessable passphrase can be brute-forced offline; use a long one. Once someone unlocks the key, their browser uses it, so they can read it. **To give the public live data without revealing the key at all, use the relay.** No browser-side scheme can hide a key that the browser itself must send.
 
 ## GitHub Pages deployment
 
-1. Merge this branch into `main`.
-2. In the repository, go to **Settings → Pages → Build and deployment** and set **Source** to **GitHub Actions**.
-3. The `Deploy to GitHub Pages` workflow tests, builds and publishes on every push to `main`. The site appears at `https://<user>.github.io/VesselViewer/`.
-4. Open the site, click **Data source**, choose **aisstream.io (direct)** and paste your key.
+1. In the repository, go to **Settings → Pages → Build and deployment** and set **Source** to **GitHub Actions**. With "Deploy from a branch" Pages serves the unbuilt source and the page stays on "Loading VesselViewer…".
+2. The `Deploy to GitHub Pages` workflow runs tests on every push and deploys from the repository's default branch. Run it once from the **Actions** tab (**Run workflow**) after changing the setting. The site appears at `https://<user>.github.io/VesselViewer/`.
+3. Open the site, click **Data source**, choose **aisstream.io (direct)** and paste your key, or set up an encrypted key (below).
 
 Optional: if you run a relay, set a repository variable `VITE_RELAY_URL` (for example `wss://relay.example.com/ws`) under **Settings → Secrets and variables → Actions → Variables**. The relay then becomes the default source for every visitor.
 
