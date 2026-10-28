@@ -3,7 +3,13 @@
  */
 import type { Layer, PickingInfo } from '@deck.gl/core';
 import { MapboxOverlay } from '@deck.gl/mapbox';
-import { Map as MapLibreMap, NavigationControl, ScaleControl, type StyleSpecification } from 'maplibre-gl';
+import {
+  Map as MapLibreMap,
+  NavigationControl,
+  ScaleControl,
+  type PaddingOptions,
+  type StyleSpecification,
+} from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { normalizeBBox, type BBox } from '../../shared/geo.js';
 
@@ -100,17 +106,18 @@ export class MapView {
     this.map.flyTo({ center: [lon, lat], zoom: zoom ?? Math.max(this.map.getZoom(), 11), essential: true });
   }
 
-  /** Low, pitched camera behind the vessel to show the 3D model. */
-  viewIn3d(lon: number, lat: number, bearing: number, lengthM: number): void {
-    // Frame the hull at roughly half the screen width.
-    const width = this.map.getContainer().clientWidth || 800;
-    const targetMpp = Math.max(0.05, (lengthM * 2) / width);
+  /** Pitched three-quarter view from the vessel's starboard quarter to show the 3D model. */
+  viewIn3d(lon: number, lat: number, heading: number, lengthM: number, padding?: PaddingOptions): void {
+    // Fit the whole hull, with some margin, across the unobstructed part of the screen.
+    const width = Math.max(200, (this.map.getContainer().clientWidth || 800) - (padding?.left ?? 0) - (padding?.right ?? 0));
+    const targetMpp = Math.max(0.05, (lengthM * 1.05) / width);
     const zoom = Math.log2((40_075_016.686 * Math.cos((lat * Math.PI) / 180)) / (512 * targetMpp));
     this.map.flyTo({
       center: [lon, lat],
       zoom: Math.min(20, Math.max(13, zoom)),
-      pitch: 62,
-      bearing,
+      pitch: 55,
+      bearing: heading - 60,
+      padding: padding ?? { top: 0, bottom: 0, left: 0, right: 0 },
       essential: true,
     });
   }

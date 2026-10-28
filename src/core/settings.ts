@@ -18,6 +18,8 @@ export interface Settings {
   basemap: BasemapId;
   /** Render true-scale 3D hulls when zoomed in. */
   models3d: boolean;
+  /** Use detailed class models (e.g. Royal Caribbean classes) for recognised ships. */
+  advancedModels: boolean;
   /** Extrapolate positions between reports using speed and course. */
   deadReckoning: boolean;
   showLabels: boolean;
@@ -44,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = {
   relayUrl: BUILD_RELAY_URL,
   basemap: 'positron',
   models3d: true,
+  advancedModels: true,
   deadReckoning: true,
   showLabels: true,
 };
@@ -86,6 +89,7 @@ export function loadSettings(): Settings {
   if (typeof stored.relayUrl === 'string' && stored.relayUrl) s.relayUrl = stored.relayUrl;
   if (typeof stored.basemap === 'string' && stored.basemap in BASEMAPS) s.basemap = stored.basemap;
   if (typeof stored.models3d === 'boolean') s.models3d = stored.models3d;
+  if (typeof stored.advancedModels === 'boolean') s.advancedModels = stored.advancedModels;
   if (typeof stored.deadReckoning === 'boolean') s.deadReckoning = stored.deadReckoning;
   if (typeof stored.showLabels === 'boolean') s.showLabels = stored.showLabels;
   return s;

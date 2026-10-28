@@ -5,6 +5,7 @@
  * the same parser as live data. Simulated vessels use MMSIs 999990000+ and
  * names prefixed "SIM" so they can never be mistaken for real ships.
  */
+import { ROYAL_CARIBBEAN_CLASSES, SHIP_CLASS_IDS } from './fleet.js';
 import { destinationPoint, distanceM, initialBearing } from './geo.js';
 
 type LonLat = [number, number];
@@ -180,6 +181,31 @@ export class AisSimulator {
       }
       this.ships.push(ship);
     }
+
+    // One cruise ship per Royal Caribbean class, so the detailed models can
+    // be seen without live data. Names keep the "SIM" prefix.
+    SHIP_CLASS_IDS.forEach((id, k) => {
+      const info = ROYAL_CARIBBEAN_CLASSES[id];
+      const lane = lanes[k % lanes.length]!;
+      this.ships.push({
+        mmsi: 999_999_000 + k,
+        name: `SIM ${info.ships[0]!.toUpperCase()}`,
+        callSign: `SIMRC${k}`,
+        imo: 9_999_000 + k,
+        profile: { shipType: 60, classB: false, length: [info.lengthM, info.lengthM], speed: [16, 21], weight: 0 },
+        length: info.lengthM,
+        beam: Math.round(info.beamM),
+        destination: 'COCOCAY',
+        lane,
+        s: lane.length * (0.15 + 0.1 * k),
+        direction: k % 2 === 0 ? 1 : -1,
+        offset: 2500,
+        speed: 16 + (k % 4),
+        anchorHeading: 0,
+        nextPositionAt: 0,
+        nextStaticAt: 0,
+      });
+    });
   }
 
   /** Start emitting messages roughly every `tickMs`. */

@@ -83,6 +83,7 @@ export class ControlPanel {
           this.world.emit('filters', undefined);
         }),
         toggle('3D ship models when zoomed in', settings.models3d, (v) => actions.onSettingsChange({ models3d: v })),
+        toggle('Advanced models', settings.advancedModels, (v) => actions.onSettingsChange({ advancedModels: v })),
         toggle('Ship names', settings.showLabels, (v) => actions.onSettingsChange({ showLabels: v })),
         toggle('Predict positions between reports', settings.deadReckoning, (v) =>
           actions.onSettingsChange({ deadReckoning: v }),

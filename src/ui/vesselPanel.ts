@@ -1,3 +1,4 @@
+import { ROYAL_CARIBBEAN_CLASSES, royalCaribbeanClassOf } from '../../shared/fleet.js';
 import {
   categoryOf,
   CATEGORY_LABELS,
@@ -100,14 +101,16 @@ export class VesselPanel {
     const typeLabel = shipTypeLabel(v.shipType);
     const parts = [typeLabel];
     if (!typeLabel.startsWith(CATEGORY_LABELS[category])) parts.push(CATEGORY_LABELS[category]);
-    parts.push(`Class ${v.aisClass}`);
+    parts.push(`AIS class ${v.aisClass}`);
     this.subtitle.textContent = parts.join(' · ');
 
     const now = this.world.now();
     const length = vesselLength(v);
     const beam = vesselBeam(v);
     const bearing = vesselBearing(v);
+    const fleetClass = royalCaribbeanClassOf(v);
     const rows: [string, string | undefined][] = [
+      ['Fleet', fleetClass ? `Royal Caribbean · ${ROYAL_CARIBBEAN_CLASSES[fleetClass].label}` : undefined],
       ['Status', v.aisClass === 'A' ? navStatusLabel(v.navStatus) : undefined],
       ['Speed', v.sog !== undefined ? `${v.sog.toFixed(1)} kn (${(v.sog * 1.852).toFixed(1)} km/h)` : undefined],
       ['Course', v.cog !== undefined ? `${v.cog.toFixed(1)}°` : undefined],

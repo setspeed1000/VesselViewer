@@ -121,7 +121,7 @@ test('simulator output parses into valid vessels', () => {
     for (const u of parseAisStreamMessage(raw, T0)) store.apply(u, T0);
   }, T0);
   assert.ok(messages >= 100, `expected position + static per ship, got ${messages}`);
-  assert.equal(store.size, 50);
+  assert.equal(store.size, 57); // 50 random + 7 Royal Caribbean class demonstrators
   for (const v of store.values()) {
     assert.ok(v.name?.startsWith('SIM '), 'simulated vessels are clearly labelled');
     assert.ok(v.mmsi >= 999_990_000);

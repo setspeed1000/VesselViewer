@@ -16,8 +16,10 @@ import {
   type Vessel,
   type VesselCategory,
 } from '../../shared/vessel.js';
+import { ROYAL_CARIBBEAN_CLASSES, royalCaribbeanClassOf, type ShipClassId } from '../../shared/fleet.js';
 import type { World } from '../core/world.js';
 import { createIconAtlas, ICON_MAPPING, ICON_SIZE, type IconName } from './icons.js';
+import { getShipModel } from './models/royalCaribbean.js';
 import { buildHullMesh, buildSuperstructureMesh, hullHeightM, type MeshData } from './shipMesh.js';
 import { CATEGORY_COLORS, DEFAULT_LENGTH_M, type RGB } from './style.js';
 
@@ -39,6 +41,8 @@ export interface RenderShip {
   sizeFactor: number;
   /** Offset from the AIS reference point to the hull centre, metres east/north. */
   centreOffset: [number, number, number];
+  /** Detailed class model to draw instead of the generic hull, when enabled. */
+  shipClass?: ShipClassId;
 }
 
 export interface RenderContext {
@@ -51,6 +55,8 @@ export interface RenderContext {
   /** True when true-scale 3D models are drawn instead of icons. */
   meshMode: boolean;
   showLabels: boolean;
+  /** Draw detailed class models for recognised ships. */
+  advancedModels: boolean;
 }
 
 /** Zoom at which icons give way to 3D models. */
@@ -65,11 +71,24 @@ export function metresPerPixel(zoom: number, latitude: number): number {
   return (EARTH_CIRCUMFERENCE_M * Math.cos((latitude * Math.PI) / 180)) / (512 * 2 ** zoom);
 }
 
+const classCache = new WeakMap<Vessel, ShipClassId | null>();
+
+/** Royal Caribbean class of a vessel, memoised per vessel record. */
+export function shipClassOf(v: Vessel): ShipClassId | undefined {
+  let id = classCache.get(v);
+  if (id === undefined) {
+    id = royalCaribbeanClassOf(v) ?? null;
+    classCache.set(v, id);
+  }
+  return id ?? undefined;
+}
+
 export function buildRenderShips(
   world: World,
   zoom: number,
   latitude: number,
   meshMode: boolean,
+  advancedModels = false,
 ): RenderShip[] {
   const now = world.now();
   const minLength = MIN_MODEL_LENGTH_PX * metresPerPixel(zoom, latitude);
@@ -78,7 +97,9 @@ export function buildRenderShips(
     if (!world.isVisible(v) && v.mmsi !== world.selected) continue;
     const category = categoryOf(v.shipType);
     const bearing = vesselBearing(v);
-    const lengthM = vesselLength(v) ?? DEFAULT_LENGTH_M[category];
+    const shipClass = advancedModels ? shipClassOf(v) : undefined;
+    const lengthM =
+      vesselLength(v) ?? (shipClass ? ROYAL_CARIBBEAN_CLASSES[shipClass].lengthM : DEFAULT_LENGTH_M[category]);
     const beamM = vesselBeam(v) ?? Math.max(2, lengthM / 6.5);
     const sizeFactor = meshMode ? Math.max(1, minLength / lengthM) : 1;
     let centreOffset: [number, number, number] = [0, 0, 0];
@@ -106,6 +127,7 @@ export function buildRenderShips(
       heightM: hullHeightM(lengthM),
       sizeFactor,
       centreOffset,
+      shipClass,
     });
   }
   return ships;
@@ -194,11 +216,46 @@ function iconLayers(ctx: RenderContext): Layer[] {
   ];
 }
 
+/** Detailed class models, one layer per class, scaled uniformly to reported length. */
+function advancedModelLayers(ships: RenderShip[]): Layer[] {
+  const byClass = new Map<ShipClassId, RenderShip[]>();
+  for (const s of ships) {
+    let list = byClass.get(s.shipClass!);
+    if (!list) byClass.set(s.shipClass!, (list = []));
+    list.push(s);
+  }
+  const layers: Layer[] = [];
+  for (const [id, data] of byClass) {
+    const model = getShipModel(id);
+    layers.push(
+      new SimpleMeshLayer<RenderShip>({
+        id: `vessel-model-${id}`,
+        data,
+        mesh: model.mesh,
+        pickable: true,
+        // White leaves the model's own vertex colours unchanged.
+        getColor: [255, 255, 255],
+        getPosition: (s) => s.position,
+        getOrientation: meshOrientation,
+        getScale: (s) => {
+          const k = (s.lengthM * s.sizeFactor) / model.lengthM;
+          return [k, k, k];
+        },
+        getTranslation: (s) => s.centreOffset,
+      }),
+    );
+  }
+  return layers;
+}
+
 function meshLayers(ctx: RenderContext): Layer[] {
+  const detailed = ctx.ships.filter((s) => s.shipClass);
+  const generic = detailed.length > 0 ? ctx.ships.filter((s) => !s.shipClass) : ctx.ships;
   const layers: Layer[] = [
+    ...advancedModelLayers(detailed),
     new SimpleMeshLayer<RenderShip>({
       id: 'vessel-hulls',
-      data: ctx.ships,
+      data: generic,
       mesh: getHullMesh(),
       pickable: true,
       getPosition: (s) => s.position,
@@ -209,7 +266,7 @@ function meshLayers(ctx: RenderContext): Layer[] {
     }),
   ];
   const byCategory = new Map<VesselCategory, RenderShip[]>();
-  for (const s of ctx.ships) {
+  for (const s of generic) {
     let list = byCategory.get(s.category);
     if (!list) byCategory.set(s.category, (list = []));
     list.push(s);

@@ -165,6 +165,24 @@ app.registerPlugin(radar); // `app` is window.vesselViewer
 
 For a multiplayer or scripted game, implement `DataSource` (`src/sources/types.ts`) to feed your own vessels into the same world.
 
+### Advanced models: Royal Caribbean fleet
+
+With **Advanced models** on (Filters & display), all 30 Royal Caribbean ships in service get a detailed model of their class instead of the generic hull:
+
+| Class | Ships | Signature features modelled |
+| --- | --- | --- |
+| Icon | Icon, Star, Legend of the Seas | AquaDome, Thrill Island slides, Pressure Drop, Royal Bay pool |
+| Oasis | Oasis, Allure, Harmony, Symphony, Wonder, Utopia of the Seas | Split cabin towers, Central Park with trees, Boardwalk with carousel, AquaTheater, Ultimate Abyss, zip line, FlowRiders, twin funnels |
+| Quantum | Quantum, Anthem, Ovation, Spectrum, Odyssey of the Seas | North Star arm and capsule, RipCord by iFly, SeaPlex, Two70 stern glass, Solarium |
+| Freedom | Freedom, Liberty, Independence of the Seas | Funnel climbing wall, FlowRider, Viking Crown Lounge, Solarium |
+| Voyager | Voyager, Explorer, Adventure, Navigator, Mariner of the Seas | As Freedom, at Voyager length and deck count |
+| Radiance | Radiance, Brilliance, Serenade, Jewel of the Seas | Glass top tier, Centrum glass walls, outward-facing glass lifts |
+| Vision | Vision, Rhapsody, Grandeur, Enchantment of the Seas | Viking Crown Lounge ringing the funnel, Centrum glass walls |
+
+Every model also has a lofted hull with a raked, flared bow, rows of portholes, balcony decks with dividers, terraced fronts, lifeboats, bridge wings, a mast with radomes, a funnel in the line's livery, pools with teak surrounds, hot tubs and sun loungers.
+
+The models are procedural (`src/render/models/`): generated in code from each class's real length, beam and deck count. They are stylised reconstructions, not shipyard CAD data. Ships are matched by AIS name, including names cut to AIS's 20-character limit. A reported ship type or length that contradicts the class rejects the match (`shared/fleet.ts`). The simulator includes one `SIM` ship of each class so the models can be viewed without live data. Select one and press **View in 3D**.
+
 ### 3D models
 
 `src/render/shipMesh.ts` defines the model convention: bow toward +Y, starboard toward +X, up +Z, unit size. Each instance is scaled to the vessel's real beam, length and freeboard. To use detailed models, export glTF files that follow the same convention (or apply a fixed rotation). Then swap the `SimpleMeshLayer`s in `src/render/layers.ts` for deck.gl `ScenegraphLayer`s, one per category, reusing `getPosition`, `getOrientation`, `getScale` and `getTranslation`.

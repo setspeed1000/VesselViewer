@@ -205,7 +205,7 @@ export class App {
     if (!this.settings.models3d) this.updateSettings({ models3d: true });
     const [lon, lat] = this.world.positionOf(v);
     const ship = this.lastContext?.ships.find((s) => s.vessel.mmsi === v.mmsi);
-    this.mapView.viewIn3d(lon, lat, ship?.bearing ?? this.mapView.map.getBearing(), ship?.lengthM ?? 100);
+    this.mapView.viewIn3d(lon, lat, ship?.bearing ?? this.mapView.map.getBearing(), ship?.lengthM ?? 100, this.uiPadding());
   }
 
   updateSettings(patch: Partial<Settings>): void {
@@ -234,6 +234,20 @@ export class App {
 
   // ---------------------------------------------------------------- internals
 
+  /** Screen space covered by the floating panels, so the camera can frame around them. */
+  private uiPadding(): { top: number; bottom: number; left: number; right: number } {
+    const padding = { top: 0, bottom: 0, left: 0, right: 0 };
+    const panel = this.panel.element;
+    if (window.innerWidth <= 640) {
+      if (!panel.hidden) padding.bottom = panel.getBoundingClientRect().height + 16;
+      padding.top = this.controls.element.getBoundingClientRect().height + 16;
+    } else {
+      padding.left = this.controls.element.getBoundingClientRect().width + 24;
+      if (!panel.hidden) padding.right = panel.getBoundingClientRect().width + 72;
+    }
+    return padding;
+  }
+
   private connect(): void {
     this.source?.stop();
     this.world.clear();
@@ -256,7 +270,7 @@ export class App {
     const zoom = this.mapView.zoom;
     const latitude = this.mapView.centreLatitude;
     const meshMode = this.settings.models3d && zoom >= MESH_MIN_ZOOM;
-    const ships = buildRenderShips(this.world, zoom, latitude, meshMode);
+    const ships = buildRenderShips(this.world, zoom, latitude, meshMode, this.settings.advancedModels);
     const ctx: RenderContext = {
       world: this.world,
       ships,
@@ -265,6 +279,7 @@ export class App {
       now: this.world.now(),
       meshMode,
       showLabels: this.settings.showLabels,
+      advancedModels: this.settings.advancedModels,
     };
     this.lastContext = ctx;
     const layers: Layer[] = buildBaseLayers(ctx);
